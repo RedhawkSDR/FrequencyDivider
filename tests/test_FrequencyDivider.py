@@ -19,68 +19,183 @@
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
 
-import unittest
-import ossie.utils.testing
-import os
-from omniORB import any
+import time
+from ossie.utils import sb
+import numpy as np
+import matplotlib.pyplot as plt
 
-class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
-    """Test for all component implementations in FrequencyDivider"""
+#Use sb helpers for producing and receiving data from component
+src = sb.DataSource()
+sink = sb.DataSink()
+divider = sb.launch('../FrequencyDivider.spd.xml')
 
-    def testScaBasicBehavior(self):
-        #######################################################################
-        # Launch the component with the default execparams
-        execparams = self.getPropertySet(kinds=("execparam",), modes=("readwrite", "writeonly"), includeNil=False)
-        execparams = dict([(x.id, any.from_any(x.value)) for x in execparams])
-        self.launch(execparams)
+#Make connections
+src.connect(divider)
+divider.connect(sink)
+  
+#Start sandbox env
+sb.start()
         
-        #######################################################################
-        # Verify the basic state of the component
-        self.assertNotEqual(self.comp, None)
-        self.assertEqual(self.comp.ref._non_existent(), False)
-        self.assertEqual(self.comp.ref._is_a("IDL:CF/Resource:1.0"), True)
-        
-        #######################################################################
-        # Validate that query returns all expected parameters
-        # Query of '[]' should return the following set of properties
-        expectedProps = []
-        expectedProps.extend(self.getPropertySet(kinds=("configure", "execparam"), modes=("readwrite", "readonly"), includeNil=True))
-        expectedProps.extend(self.getPropertySet(kinds=("allocate",), action="external", includeNil=True))
-        props = self.comp.query([])
-        props = dict((x.id, any.from_any(x.value)) for x in props)
-        # Query may return more than expected, but not less
-        for expectedProp in expectedProps:
-            self.assertEquals(props.has_key(expectedProp.id), True)
-        
-        #######################################################################
-        # Verify that all expected ports are available
-        for port in self.scd.get_componentfeatures().get_ports().get_uses():
-            port_obj = self.comp.getPort(str(port.get_usesname()))
-            self.assertNotEqual(port_obj, None)
-            self.assertEqual(port_obj._non_existent(), False)
-            self.assertEqual(port_obj._is_a("IDL:CF/Port:1.0"),  True)
-            
-        for port in self.scd.get_componentfeatures().get_ports().get_provides():
-            port_obj = self.comp.getPort(str(port.get_providesname()))
-            self.assertNotEqual(port_obj, None)
-            self.assertEqual(port_obj._non_existent(), False)
-            self.assertEqual(port_obj._is_a(port.get_repid()),  True)
-            
-        #######################################################################
-        # Make sure start and stop can be called without throwing exceptions
-        self.comp.start()
-        self.comp.stop()
-        
-        #######################################################################
-        # Simulate regular component shutdown
-        self.comp.releaseObject()
-        
-    # TODO Add additional tests here
-    #
-    # See:
-    #   ossie.utils.bulkio.bulkio_helpers,
-    #   ossie.utils.bluefile.bluefile_helpers
-    # for modules that will assist with testing components with BULKIO ports
+#generate message signal
+numSamples = 1000
+data = []
+for i in xrange(numSamples):
+    data.append((float(0.3)*float(np.cos(2*np.pi*float(0.013)*i + float(0.0)))) +
+               (float(0.2)*float(np.cos(2*np.pi*float(0.021)*i + float(0.4)))) +
+               (float(0.4)*float(np.cos(2*np.pi*float(0.037)*i + float(1.7)))))
+
+#Count zero crossings in message data
+signCurrent = False
+if data[0] > 0:
+    signLast = True
+else:
+    signLast = False
+d_zeroCross = 0 
+for i in xrange(1,len(data)):
+    if data[i] > 0:
+        signCurrent = True
+    else:
+        signCurrent = False
+    if signCurrent != signLast:
+        d_zeroCross += 1
+    signLast = signCurrent
+
+#-----------------------------------------------
+# Unit Test 1
+# Testing Default Property Settings
+#-----------------------------------------------
+
+#Send data across the wave
+src.push(data)
+time.sleep(1)
+received_data = sink.getData()
+
+#Count zero-crossings in received data
+signCurrent = False
+if received_data[0] > 0:
+    signLast = True
+else:
+    signLast = False
+r_zeroCross = 0 
+for i in xrange(1,len(received_data)):
+    if received_data[i] > 0:
+        signCurrent = True
+    else:
+        signCurrent = False
+    if signCurrent != signLast:
+        r_zeroCross += 1
+    signLast = signCurrent
+
+#Plots 
+#plt.plot(data)
+#plt.plot(received_data)
+#plt.plot([0,len(data)],[0,0],'k-',lw=1)
+#plt.show() 
+      
+#Check expected values against the received values
+expected = d_zeroCross
+passed = True
+if r_zeroCross != expected:
+    passed = False 
+                
+if passed:
+    print "Unit Test 1 .........................",u'\u2714'
+else:
+    print "Unit Test 1 .........................",u'\u2718'
+
+
+#-----------------------------------------------
+# Unit Test 2
+# Testing Setting the Divisor Property
+#-----------------------------------------------
+
+#Configure prop
+divider.configure({'Divisor':16})
+
+#Send data across the wave
+src.push(data)
+time.sleep(1)
+received_data = sink.getData()
+
+#Count zero-crossings in received data
+signCurrent = False
+if received_data[0] > 0:
+    signLast = True
+else:
+    signLast = False
+r_zeroCross = 0 
+for i in xrange(1,len(received_data)):
+    if received_data[i] > 0:
+        signCurrent = True
+    else:
+        signCurrent = False
+    if signCurrent != signLast:
+        r_zeroCross += 1
+    signLast = signCurrent
+
+#Plots 
+#plt.plot(data)
+#plt.plot(received_data)
+#plt.plot([0,len(data)],[0,0],'k-',lw=1)
+#plt.show() 
+      
+#Check expected values against the received values
+expected = d_zeroCross / divider.Divisor
+passed = True
+if r_zeroCross != expected:
+    passed = False 
+                
+if passed:
+    print "Unit Test 2 .........................",u'\u2714'
+else:
+    print "Unit Test 2 .........................",u'\u2718'
     
-if __name__ == "__main__":
-    ossie.utils.testing.main("../FrequencyDivider.spd.xml") # By default tests all implementations
+  
+#-----------------------------------------------
+# Unit Test 3
+# Testing Zero Divisor
+#-----------------------------------------------
+
+#Configure prop
+divider.configure({'Divisor':0})
+
+#Send data across the wave
+src.push(data)
+time.sleep(1)
+received_data = sink.getData()
+
+#Count zero-crossings in received data
+signCurrent = False
+if received_data[0] > 0:
+    signLast = True
+else:
+    signLast = False
+r_zeroCross = 0 
+for i in xrange(1,len(received_data)):
+    if received_data[i] > 0:
+        signCurrent = True
+    else:
+        signCurrent = False
+    if signCurrent != signLast:
+        r_zeroCross += 1
+    signLast = signCurrent
+
+#Plots 
+#plt.plot(data)
+#plt.plot(received_data)
+#plt.plot([0,len(data)],[0,0],'k-',lw=1)
+#plt.show() 
+      
+#Check expected values against the received values
+expected = d_zeroCross
+passed = True
+if r_zeroCross != expected:
+    passed = False 
+                
+if passed:
+    print "Unit Test 3 .........................",u'\u2714'
+else:
+    print "Unit Test 3 .........................",u'\u2718'    
+      
+#Stop sandbox env
+sb.stop()

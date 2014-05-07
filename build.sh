@@ -19,7 +19,6 @@
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
 
-
 if [ "$1" = "rpm" ]; then
     # A very simplistic RPM build scenario
     if [ -e FrequencyDivider.spec ]; then
@@ -39,7 +38,7 @@ else
         if [ -e build.sh ]; then
             ./build.sh $*
         elif [ -e reconf ]; then
-            ./reconf && ./configure && make
+            ./reconf && ./configure && make $*
         else
             echo "No build.sh found for $impl"
         fi

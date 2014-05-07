@@ -22,11 +22,10 @@
 #include "ossie/ossieSupport.h"
 
 #include "FrequencyDivider.h"
-
-
 int main(int argc, char* argv[])
 {
     FrequencyDivider_i* FrequencyDivider_servant;
     Resource_impl::start_component(FrequencyDivider_servant, argc, argv);
     return 0;
 }
+
