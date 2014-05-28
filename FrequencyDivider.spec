@@ -63,13 +63,6 @@ pushd cpp
 %configure
 make %{?_smp_mflags}
 popd
-# Implementation cpp_arm
-pushd cpp_arm
-./reconf
-%define _bindir %{_prefix}/dom/components/FrequencyDivider/cpp_arm
-%configure
-make %{?_smp_mflags}
-popd
 
 
 %install
@@ -77,11 +70,6 @@ rm -rf $RPM_BUILD_ROOT
 # Implementation cpp
 pushd cpp
 %define _bindir %{_prefix}/dom/components/FrequencyDivider/cpp
-make install DESTDIR=$RPM_BUILD_ROOT
-popd
-# Implementation cpp_arm
-pushd cpp_arm
-%define _bindir %{_prefix}/dom/components/FrequencyDivider/cpp_arm
 make install DESTDIR=$RPM_BUILD_ROOT
 popd
 
@@ -97,5 +85,4 @@ rm -rf $RPM_BUILD_ROOT
 %{_prefix}/dom/components/%{name}/FrequencyDivider.prf.xml
 %{_prefix}/dom/components/%{name}/FrequencyDivider.spd.xml
 %{_prefix}/dom/components/%{name}/cpp
-%{_prefix}/dom/components/%{name}/cpp_arm
 
