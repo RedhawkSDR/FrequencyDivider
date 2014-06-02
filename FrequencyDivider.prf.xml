@@ -18,10 +18,9 @@
  You should have received a copy of the GNU Lesser General Public License
  along with this program.  If not, see http://www.gnu.org/licenses/.
 -->
-
 <!DOCTYPE properties PUBLIC "-//JTRS//DTD SCA V2.2.2 PRF//EN" "properties.dtd">
 <properties>
-  <simple id="Divisor" mode="readwrite" type="short">
+  <simple id="Divisor" mode="readwrite" name="Divisor" type="short">
     <description>The desired divisor</description>
     <value>1</value>
     <kind kindtype="configure"/>

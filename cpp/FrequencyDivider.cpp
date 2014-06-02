@@ -42,12 +42,11 @@ FrequencyDivider_i::FrequencyDivider_i(const char *uuid, const char *label) :
 {
 	m_lastSize = 0;
 	m_currentSize = 0;
-	m_divisor = 0;
-	m_DIVISOR = Divisor;
+	m_count = 0;
 	m_signLast = m_signCurrent = false;
 	m_out = 1;
-	setPropertyChangeListener("Divisor", this,
-				&FrequencyDivider_i::propertyChangeListener);
+
+	addPropertyChangeListener("Divisor", this, &FrequencyDivider_i::divisorChanged);
 }
 
 FrequencyDivider_i::~FrequencyDivider_i()
@@ -63,42 +62,45 @@ int FrequencyDivider_i::serviceFunction()
 		return NOOP;
 	}
 
+	//Push SRI if it changes
 	if (input->sriChanged) {
 		dataFloat_out->pushSRI(input->SRI);
 	}
 
+	//Find size of input vector and resize output vector if it changes
 	m_currentSize = input->dataBuffer.size();
-
 	if (m_currentSize == 0) {
 		return NOOP;
     }
-
     if (m_lastSize != m_currentSize) {
     	resizeOutput();
     }
 
     unsigned int i;
+	{
+		boost::mutex::scoped_lock lock(propertyLock_);
 
-    if (m_lastSize == 0) {
-    	m_signLast = (input->dataBuffer[0] > 0 ? true : false);
-    	i = 1;
-    	m_outputData[0] = m_out;
-    } else {
-    	i = 0;
-    }
-
-    for ( ; i<m_outputData.size(); ++i) {
-    	m_signCurrent = (input->dataBuffer[i] > 0 ? true : false);
-    	if (m_signCurrent != m_signLast) { // A zero-cross
-			if (++m_divisor == m_DIVISOR) { // Got 16 zero-crossings
-				m_out *= -1;
-				m_divisor = 0;
-			}
+		//Find the sign of the previous sample
+		if (m_lastSize == 0) {
+			m_signLast = (input->dataBuffer[0] > 0 ? true : false);
+			i = 1;
+			m_outputData[0] = m_out;
+		} else {
+			i = 0;
 		}
-		m_outputData[i] = m_out;
-		m_signLast = m_signCurrent;
-    }
 
+		for (; i < m_outputData.size(); ++i) {
+			m_signCurrent = (input->dataBuffer[i] > 0 ? true : false);
+			if (m_signCurrent != m_signLast) { // A zero-cross
+				if (++m_count == Divisor) { // There have been 'Divisor' # of zero-crossings
+					m_out *= -1;
+					m_count = 0;
+				}
+			}
+			m_outputData[i] = m_out;
+			m_signLast = m_signCurrent;
+		}
+	}
 
     dataFloat_out->pushPacket(m_outputData,input->T,input->EOS,input->streamID);
     m_lastSize = m_currentSize;
@@ -113,16 +115,19 @@ void FrequencyDivider_i::resizeOutput()
 	m_outputData.resize(m_currentSize);
 }
 
-void FrequencyDivider_i::propertyChangeListener(const std::string &id)
+void FrequencyDivider_i::divisorChanged(const short *oldValue, const short *newValue)
 {
-	if (id == "Divisor") {
-		m_DIVISOR = Divisor;
-		if (m_DIVISOR == 0) {
-			m_DIVISOR = 1;
-			LOG_WARN(FrequencyDivider_i,"Cannot divide by 0! Setting to default value 1.");
-		}
-		m_divisor = 0;
-		m_signLast = m_signCurrent = false;
-		m_out = 1;
+	boost::mutex::scoped_lock lock(propertyLock_);
+
+	//Check that new divisor is valid
+	if (*newValue <= 0) {
+		Divisor = *oldValue;
+		LOG_WARN(FrequencyDivider_i,"Divisor Can't Be 0 or Negative! Keeping Previous Value.");
+	}else{
+		Divisor = *newValue;
 	}
+
+	m_count = 0;
+	m_signLast = m_signCurrent = false;
+	m_out = 1;
 }

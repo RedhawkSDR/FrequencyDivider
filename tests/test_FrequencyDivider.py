@@ -187,7 +187,7 @@ for i in xrange(1,len(received_data)):
 #plt.show() 
       
 #Check expected values against the received values
-expected = d_zeroCross
+expected = d_zeroCross / divider.Divisor
 passed = True
 if r_zeroCross != expected:
     passed = False 

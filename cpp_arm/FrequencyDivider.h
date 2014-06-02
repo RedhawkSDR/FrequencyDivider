@@ -33,15 +33,20 @@ class FrequencyDivider_i : public FrequencyDivider_base
         ~FrequencyDivider_i();
         int serviceFunction();
     private:
-        int m_divisor;
-        int m_DIVISOR;
+        int m_count;
         float m_out;
         bool m_signCurrent, m_signLast;
-        std::vector<float> m_outputData;
         unsigned int m_currentSize;
         unsigned int m_lastSize;
+
+        //Output Vector
+        std::vector<float> m_outputData;
+
+        //Member Functions
         void resizeOutput();
-        void propertyChangeListener(const std::string &);
+        void divisorChanged(const short *oldValue, const short *newValue);
+
+        boost::mutex propertyLock_;
 };
 
 #endif
